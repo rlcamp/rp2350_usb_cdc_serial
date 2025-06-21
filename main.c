@@ -32,9 +32,11 @@ int main(void) {
 
         printf("connected\r\n");
 
-        void * staging_area = usb_cdc_serial_tx_staging_area();
-        const void * out_buf = usb_cdc_serial_rx_staging_area();
         static const char wherry[] = "In 1520 Sir Alexander Stewart of Invernahyle was fishing off the small island next to Castle Stalker when he was surprised and murdered by a party of Campbells. Tradition has it that the nurse of his baby son, Donald Stewart, hid the baby in the Castle and when the Campbells left the nurse returned, found the baby still alive and took refuge in Morven. In around 1620 the Castle passed into the hands of the Campbells of Airds as a result of a drunken wager by the 7th Stewart Chief, Duncan, in exchange for an eight-oared wherry.\r\n";
+        void * staging_area = usb_cdc_serial_tx_staging_area(sizeof(wherry) - 1);
+        if (!staging_area) panic("output too large");
+        const void * out_buf = usb_cdc_serial_rx_staging_area();
+
         unaligned_memcpy(staging_area, wherry, sizeof(wherry) - 1);
 
         for (size_t ipass = 0; ipass < 2 && get_dtr(); ipass++) {

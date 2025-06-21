@@ -643,7 +643,8 @@ int usb_cdc_serial_tx_still_sending(void) {
     return !!(*(void * volatile *)&ep2_in->dpram_stop);
 }
 
-void * usb_cdc_serial_tx_staging_area(void) {
+void * usb_cdc_serial_tx_staging_area(const size_t size_wanted) {
+    if (ep2_in->dpram_start + size_wanted > usb_dpram->epx_data + 4096) return NULL;
     return ep2_in->dpram_start;
 }
 

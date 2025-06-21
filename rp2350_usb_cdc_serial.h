@@ -7,7 +7,7 @@ const void * usb_cdc_serial_rx_staging_area(void);
 size_t usb_cdc_serial_rx_filled(void);
 void usb_cdc_serial_rx_rearm(void);
 
-void * usb_cdc_serial_tx_staging_area(void);
+void * usb_cdc_serial_tx_staging_area(const size_t size_wanted);
 void usb_cdc_serial_tx_start(const size_t size);
 int usb_cdc_serial_tx_still_sending(void);
 
