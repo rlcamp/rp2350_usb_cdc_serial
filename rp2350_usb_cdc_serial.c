@@ -627,7 +627,6 @@ static void usb_handle_setup_packet(void) {
     }
 }
 
-static unsigned char usb_cdc_serial_out_buf[64] __attribute((aligned(8)));
 static size_t rx_buf_filled = 0;
 
 size_t usb_cdc_serial_rx_filled(void) {
@@ -649,7 +648,7 @@ void * usb_cdc_serial_tx_staging_area(void) {
 }
 
 const void * usb_cdc_serial_rx_staging_area(void) {
-    return usb_cdc_serial_out_buf;
+    return ep2_out->dpram_start;
 }
 
 void usb_cdc_serial_tx_start(const size_t size) {
@@ -716,9 +715,7 @@ static void usb_handle_buff_status(void) {
         usb_hw_clear->buf_status = ep2_out_mask;
         remaining_buffers &= ~ep2_out_mask;
 
-        const size_t len = (*ep2_out->ep_buf_ctrl) & USB_BUF_CTRL_LEN_MASK;
-        unaligned_memcpy(usb_cdc_serial_out_buf, ep2_out->dpram_start, len); /* src and dst must be 8 byte aligned */
-        rx_buf_filled = len;
+        rx_buf_filled = (*ep2_out->ep_buf_ctrl) & USB_BUF_CTRL_LEN_MASK;
     }
 
     /* TODO: something to handle remaining buffers? */
