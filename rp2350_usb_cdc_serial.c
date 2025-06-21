@@ -630,29 +630,29 @@ static void usb_handle_setup_packet(void) {
 static unsigned char usb_cdc_serial_out_buf[64] __attribute((aligned(8)));
 static size_t rx_buf_filled = 0;
 
-size_t usb_cdc_serial_out_filled(void) {
+size_t usb_cdc_serial_rx_filled(void) {
     return *(volatile size_t *)&rx_buf_filled;
 }
 
-void usb_cdc_serial_out_rearm(void) {
+void usb_cdc_serial_rx_rearm(void) {
     *(volatile size_t *)&rx_buf_filled = 0;
     /* indicate to host that ep2 out can receive */
     usb_start_out_transfer(ep2_out, 64);
 }
 
-int usb_cdc_serial_in_still_sending(void) {
+int usb_cdc_serial_tx_still_sending(void) {
     return !!(*(void * volatile *)&ep2_in->dpram_stop);
 }
 
-void * usb_cdc_serial_in_staging_area(void) {
+void * usb_cdc_serial_tx_staging_area(void) {
     return ep2_in->dpram_start;
 }
 
-const void * usb_cdc_serial_out_staging_area(void) {
+const void * usb_cdc_serial_rx_staging_area(void) {
     return usb_cdc_serial_out_buf;
 }
 
-void usb_cdc_serial_in_start_sending(const size_t size) {
+void usb_cdc_serial_tx_start(const size_t size) {
     usb_double_buffered_in_transfer_start(ep2_in, size);
 }
 
