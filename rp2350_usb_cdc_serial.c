@@ -649,7 +649,7 @@ void usb_cdc_serial_rx_rearm(void) {
 }
 
 int usb_cdc_serial_tx_still_sending(void) {
-    return !!(*(void * volatile *)&ep2_in->dpram_stop);
+    return !usb_cdc_serial_dtr_has_gone_low() && !!(*(void * volatile *)&ep2_in->dpram_stop);
 }
 
 void * usb_cdc_serial_tx_staging_area(const size_t size_wanted) {
