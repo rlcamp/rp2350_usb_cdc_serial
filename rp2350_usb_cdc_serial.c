@@ -662,6 +662,7 @@ const void * usb_cdc_serial_rx_staging_area(void) {
 }
 
 void usb_cdc_serial_tx_start(const size_t size) {
+    if (usb_cdc_serial_dtr_has_gone_low()) return;
     usb_double_buffered_in_transfer_start(ep2_in, size);
 }
 
