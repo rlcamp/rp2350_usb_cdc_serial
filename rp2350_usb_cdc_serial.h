@@ -1,7 +1,12 @@
 #include <stddef.h>
 
 void usb_cdc_serial_init(void);
-char get_dtr(void);
+
+/* loop on this until it returns nonzero */
+int usb_cdc_serial_dtr_is_high(void);
+
+/* connection lasts until this returns nonzero */
+int usb_cdc_serial_dtr_has_gone_low(void);
 
 const void * usb_cdc_serial_rx_staging_area(void);
 size_t usb_cdc_serial_rx_filled(void);

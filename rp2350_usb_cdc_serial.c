@@ -549,7 +549,15 @@ static uint8_t dev_addr = 0;
 static struct cdc_line_info __attribute((aligned(8))) cdc_line_info = { .dwDTERate = 115200, .bDataBits = 8 };
 _Static_assert(sizeof(cdc_line_info) == 7, "wtf");
 
-char get_dtr(void) {
+static char dtr_has_gone_low = 0;
+
+int usb_cdc_serial_dtr_has_gone_low(void) {
+    return *(volatile char *)&dtr_has_gone_low;
+}
+
+int usb_cdc_serial_dtr_is_high(void) {
+    dtr_has_gone_low = 0;
+
     if (!hack_has_elapsed) return 0;
     return (*(volatile uint8_t *)&cdc_line_state) & 0x1;
 }
@@ -572,6 +580,7 @@ static void usb_handle_setup_packet(void) {
                 rom_reset_usb_boot_extra(-1, 0, false);
 
             hack_has_elapsed = 0;
+            dtr_has_gone_low = 1;
         }
 
         else if (!(cdc_line_state & 0x01) && (pkt->wValue & 0x01)) {

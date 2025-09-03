@@ -27,7 +27,7 @@ int main(void) {
     printf("enumerated\r\n");
 
     while (1) {
-        while (!get_dtr())
+        while (!usb_cdc_serial_dtr_is_high())
             yield();
 
         printf("connected\r\n");
@@ -39,21 +39,21 @@ int main(void) {
 
         unaligned_memcpy(staging_area, wherry, sizeof(wherry) - 1);
 
-        for (size_t ipass = 0; ipass < 2 && get_dtr(); ipass++) {
+        for (size_t ipass = 0; ipass < 2 && !usb_cdc_serial_dtr_has_gone_low(); ipass++) {
             usb_cdc_serial_tx_start(sizeof(wherry) - 1);
 
-            while (get_dtr() && usb_cdc_serial_tx_still_sending())
+            while (!usb_cdc_serial_dtr_has_gone_low() && usb_cdc_serial_tx_still_sending())
                 yield();
         }
 
-        while (get_dtr()) {
+        while (!usb_cdc_serial_dtr_has_gone_low()) {
             const size_t bytes_to_echo = usb_cdc_serial_rx_filled();
 
             if (bytes_to_echo && !usb_cdc_serial_tx_still_sending()) {
                 unaligned_memcpy(staging_area, out_buf, bytes_to_echo);
 
                 usb_cdc_serial_tx_start(bytes_to_echo);
-                while (__dsb(), get_dtr() && usb_cdc_serial_tx_still_sending())
+                while (__dsb(), !usb_cdc_serial_dtr_has_gone_low() && usb_cdc_serial_tx_still_sending())
                     yield();
                 usb_cdc_serial_rx_rearm();
                 printf("forwarded %zu bytes\r\n", bytes_to_echo);
