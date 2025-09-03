@@ -717,6 +717,7 @@ static void usb_handle_buff_status(void) {
         else {
             ep2_in->dpram_cursor = NULL;
             ep2_in->dpram_stop = NULL;
+            __dsb();
         }
     }
 
