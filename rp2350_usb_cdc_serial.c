@@ -712,7 +712,7 @@ static void usb_handle_buff_status(void) {
         usb_hw_clear->buf_status = ep2_in_mask;
         remaining_buffers &= ~ep2_in_mask;
 
-        if (ep2_in->dpram_cursor != ep2_in->dpram_stop)
+        if (ep2_in->dpram_cursor != ep2_in->dpram_stop && !usb_cdc_serial_dtr_has_gone_low())
             usb_double_buffered_in_transfer_continue(ep2_in);
         else {
             ep2_in->dpram_cursor = NULL;
