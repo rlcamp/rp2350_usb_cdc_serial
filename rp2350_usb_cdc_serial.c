@@ -214,14 +214,14 @@ static inline uint32_t usb_buffer_offset(volatile unsigned char * buf) {
 }
 
 void usb_cdc_serial_init(void) {
+    /* temporarily disable this until below init is finished */
+    irq_set_enabled(USBCTRL_IRQ, false);
+
     /* reset peripheral */
     reset_unreset_block_num_wait_blocking(RESET_USBCTRL);
 
     /* clear dpram */
     memset(usb_dpram, 0, sizeof(*usb_dpram));
-
-    /* enable usb interrupt in nvic */
-    irq_set_enabled(USBCTRL_IRQ, true);
 
     /* enable usb pin mux */
     usb_hw->muxing = USB_USB_MUXING_TO_PHY_BITS | USB_USB_MUXING_SOFTCON_BITS;
@@ -256,6 +256,14 @@ void usb_cdc_serial_init(void) {
 
     /* pull up on dp to indicate full speed */
     usb_hw_set->sie_ctrl = USB_SIE_CTRL_PULLUP_EN_BITS;
+
+    enumerated = 0;
+
+    /* make sure all writes to sram have finished before isr fires */
+    __dsb();
+
+    /* enable usb interrupt in nvic */
+    irq_set_enabled(USBCTRL_IRQ, true);
 }
 
 static void usb_start_out_transfer(struct usb_endpoint_configuration * ep, const size_t len) {
