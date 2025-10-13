@@ -238,7 +238,7 @@ void usb_cdc_serial_init(void) {
     usb_hw->sie_ctrl = USB_SIE_CTRL_EP0_INT_1BUF_BITS;
 
     /* enable interrupts we will react to */
-    usb_hw->inte = USB_INTS_BUFF_STATUS_BITS | USB_INTS_BUS_RESET_BITS | USB_INTS_SETUP_REQ_BITS;
+    usb_hw->inte = USB_INTE_BUFF_STATUS_BITS | USB_INTE_BUS_RESET_BITS | USB_INTE_SETUP_REQ_BITS;
 
     *ep1_in->ep_ctrl = (EP_CTRL_ENABLE_BITS |
                         EP_CTRL_INTERRUPT_PER_BUFFER |
