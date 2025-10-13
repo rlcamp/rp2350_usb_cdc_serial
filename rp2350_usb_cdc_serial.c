@@ -778,7 +778,7 @@ void isr_usbctrl(void) {
     }
 
     if (usb_hw->sie_status & USB_SIE_STATUS_DATA_SEQ_ERROR_BITS) {
-        usb_hw->sie_status = USB_SIE_STATUS_DATA_SEQ_ERROR_BITS;
+        usb_hw_clear->sie_status = USB_SIE_STATUS_DATA_SEQ_ERROR_BITS;
         seq_errors++;
     }
 
