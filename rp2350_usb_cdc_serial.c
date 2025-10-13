@@ -272,8 +272,11 @@ static void usb_start_out_transfer(struct usb_endpoint_configuration * ep, const
     /* handle a single OUT packet at a time */
     assert(len <= 64);
 
-    *ep->ep_buf_ctrl = (len | USB_BUF_CTRL_AVAIL |
-                        (ep->next_pid ? USB_BUF_CTRL_DATA1_PID : USB_BUF_CTRL_DATA0_PID));
+    const uint32_t val = len | (ep->next_pid ? USB_BUF_CTRL_DATA1_PID : USB_BUF_CTRL_DATA0_PID);
+    *ep->ep_buf_ctrl = val;
+    asm volatile("nop;nop;nop" :::);
+    *ep->ep_buf_ctrl = val | USB_BUF_CTRL_AVAIL;
+
     ep->next_pid ^= 1;
 }
 
