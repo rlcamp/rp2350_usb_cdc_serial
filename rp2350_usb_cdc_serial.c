@@ -625,6 +625,7 @@ static void usb_handle_setup_packet(void) {
             usb_start_out_transfer(ep2_out, 64);
 
             enumerated = 1;
+            __dsb();
         }
         else usb_acknowledge_out_request();
     } else if (req_direction == USB_DIR_IN) {
