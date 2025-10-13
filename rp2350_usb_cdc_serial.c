@@ -50,6 +50,8 @@
 #define CDC_SET_CONTROL_LINE_STATE 0x22
 #define CDC_SEND_BREAK 0x23
 
+size_t seq_errors = 0;
+
 struct usb_setup_packet {
     uint8_t bmRequestType;
     uint8_t bRequest;
@@ -775,8 +777,10 @@ void isr_usbctrl(void) {
         }
     }
 
-    if (usb_hw->sie_status & USB_SIE_STATUS_DATA_SEQ_ERROR_BITS)
+    if (usb_hw->sie_status & USB_SIE_STATUS_DATA_SEQ_ERROR_BITS) {
         usb_hw->sie_status = USB_SIE_STATUS_DATA_SEQ_ERROR_BITS;
+        seq_errors++;
+    }
 
     if (status ^ handled)
         panic("unhandled irq(s): 0x%x\n", (uint) (status ^ handled));
