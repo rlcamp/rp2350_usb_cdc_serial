@@ -223,6 +223,8 @@ void usb_cdc_serial_deinit(void) {
 
     /* reset peripheral */
     reset_unreset_block_num_wait_blocking(RESET_USBCTRL);
+
+    hw_set_bits(&usb_hw->sie_ctrl, USB_SIE_CTRL_TRANSCEIVER_PD_BITS);
 }
 
 void usb_cdc_serial_init(void) {
