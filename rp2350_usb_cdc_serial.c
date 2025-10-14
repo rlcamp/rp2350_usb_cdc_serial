@@ -215,6 +215,16 @@ static inline uint32_t usb_buffer_offset(volatile unsigned char * buf) {
     return (uint32_t)buf ^ (uint32_t)usb_dpram;
 }
 
+void usb_cdc_serial_deinit(void) {
+    irq_set_enabled(USBCTRL_IRQ, false);
+    irq_clear(USBCTRL_IRQ);
+
+    enumerated = 0;
+
+    /* reset peripheral */
+    reset_unreset_block_num_wait_blocking(RESET_USBCTRL);
+}
+
 void usb_cdc_serial_init(void) {
     /* temporarily disable this until below init is finished */
     irq_set_enabled(USBCTRL_IRQ, false);

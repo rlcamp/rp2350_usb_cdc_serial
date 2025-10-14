@@ -1,6 +1,7 @@
 #include <stddef.h>
 
 void usb_cdc_serial_init(void);
+void usb_cdc_serial_deinit(void);
 
 /* loop on this until it returns nonzero */
 int usb_cdc_serial_dtr_is_high(void);
