@@ -720,6 +720,8 @@ static void usb_handle_buff_status(void) {
             unaligned_memcpy(&cdc_line_info, usb_dpram->ep0_buf_a, sizeof(cdc_line_info));
             should_set_cdc_line_state = 0;
 
+            /* force next pid because this is technically in response to a setup packet */
+            ep0_out->next_pid = 1;
             usb_acknowledge_out_request();
         }
     }
