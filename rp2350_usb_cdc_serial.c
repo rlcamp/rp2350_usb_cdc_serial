@@ -164,8 +164,6 @@ struct cdc_line_info {
 #define CDC0_INTERFACE_ACM 0
 #define CDC0_INTERFACE_DATA 1
 
-unsigned char enumerated = 0;
-
 static unsigned char __attribute((aligned(8))) ep0_buf[64];
 
 static struct usb_endpoint_configuration {
@@ -219,8 +217,6 @@ void usb_cdc_serial_deinit(void) {
     irq_set_enabled(USBCTRL_IRQ, false);
     irq_clear(USBCTRL_IRQ);
 
-    enumerated = 0;
-
     /* reset peripheral */
     reset_unreset_block_num_wait_blocking(RESET_USBCTRL);
 
@@ -270,8 +266,6 @@ void usb_cdc_serial_init(void) {
 
     /* pull up on dp to indicate full speed */
     usb_hw_set->sie_ctrl = USB_SIE_CTRL_PULLUP_EN_BITS;
-
-    enumerated = 0;
 
     /* make sure all writes to sram have finished before isr fires */
     __dsb();
@@ -641,7 +635,6 @@ static void usb_handle_setup_packet(void) {
             /* indicate to host that ep2 out can receive */
             usb_start_out_transfer(ep2_out, 64);
 
-            enumerated = 1;
             __dsb();
         }
         else usb_acknowledge_out_request();
@@ -784,7 +777,6 @@ void isr_usbctrl(void) {
 
         dev_addr = 0;
         usb_hw->dev_addr_ctrl = 0;
-        enumerated = 0;
     }
 
     if (status & USB_INTS_DEV_SOF_BITS) {

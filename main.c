@@ -21,11 +21,6 @@ int main(void) {
     printf("standalone usb cdc demo\n");
     usb_cdc_serial_init();
 
-    while (!(*(volatile unsigned char *)&enumerated))
-        yield();
-
-    printf("enumerated\r\n");
-
     while (1) {
         while (!usb_cdc_serial_dtr_is_high())
             yield();

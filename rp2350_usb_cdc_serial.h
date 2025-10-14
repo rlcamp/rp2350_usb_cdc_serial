@@ -18,6 +18,3 @@ void usb_cdc_serial_tx_start(const size_t size);
 int usb_cdc_serial_tx_still_sending(void);
 
 void unaligned_memcpy(void *, const void * restrict, size_t count);
-
-/* mostly for debug */
-extern unsigned char enumerated;
