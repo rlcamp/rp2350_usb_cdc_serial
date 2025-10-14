@@ -170,9 +170,9 @@ static unsigned char __attribute((aligned(8))) ep0_buf[64];
 
 static struct usb_endpoint_configuration {
     /* pointers to registers and places in special memory for this endpoint */
-    volatile uint32_t * ep_ctrl;
-    volatile uint32_t * ep_buf_ctrl;
-    unsigned char * dpram_start;
+    volatile uint32_t * const ep_ctrl;
+    volatile uint32_t * const ep_buf_ctrl;
+    unsigned char * const dpram_start;
 
     union {
         struct { unsigned char * dpram_cursor, * dpram_stop; };
@@ -180,30 +180,30 @@ static struct usb_endpoint_configuration {
     };
 
     /* we need this every time we set ep ctrl */
-    uint8_t transfer_type_bits;
+    const uint8_t transfer_type_bits;
 
     /* toggles on every packet (unless overridden for ep0) */
     unsigned char next_pid;
-} * ep0_out = &(struct usb_endpoint_configuration) {
+} * const ep0_out = &(struct usb_endpoint_configuration) {
     .transfer_type_bits = USB_TRANSFER_TYPE_CONTROL,
     .ep_buf_ctrl = &usb_dpram->ep_buf_ctrl[0].out,
     .dpram_start = usb_dpram->ep0_buf_a,
-}, * ep0_in = &(struct usb_endpoint_configuration) {
+}, * const ep0_in = &(struct usb_endpoint_configuration) {
     .transfer_type_bits = USB_TRANSFER_TYPE_CONTROL,
     .ep_buf_ctrl = &usb_dpram->ep_buf_ctrl[0].in,
     .dpram_start = usb_dpram->ep0_buf_a,
-}, * ep1_in = &(struct usb_endpoint_configuration) {
+}, * const ep1_in = &(struct usb_endpoint_configuration) {
     .transfer_type_bits = USB_TRANSFER_TYPE_INTERRUPT,
     /* note ep_ctrls count from one less than endpoint number */
     .ep_ctrl = &usb_dpram->ep_ctrl[0].in,
     .ep_buf_ctrl = &usb_dpram->ep_buf_ctrl[1].in,
     .dpram_start = usb_dpram->epx_data + 1 * 64,
-}, * ep2_out = &(struct usb_endpoint_configuration) {
+}, * const ep2_out = &(struct usb_endpoint_configuration) {
     .transfer_type_bits = USB_TRANSFER_TYPE_BULK,
     .ep_ctrl = &usb_dpram->ep_ctrl[1].out,
     .ep_buf_ctrl = &usb_dpram->ep_buf_ctrl[2].out,
     .dpram_start = usb_dpram->epx_data + 2 * 64,
-}, * ep2_in = &(struct usb_endpoint_configuration) {
+}, * const ep2_in = &(struct usb_endpoint_configuration) {
     .transfer_type_bits = USB_TRANSFER_TYPE_BULK,
     .ep_ctrl = &usb_dpram->ep_ctrl[1].in,
     .ep_buf_ctrl = &usb_dpram->ep_buf_ctrl[2].in,
