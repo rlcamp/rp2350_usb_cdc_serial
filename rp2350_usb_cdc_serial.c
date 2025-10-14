@@ -584,36 +584,38 @@ static void usb_handle_setup_packet(void) {
     ep0_in->next_pid = 1;
     ep0_out->next_pid = 1;
 
-    if (CDC_SET_CONTROL_LINE_STATE == req) {
-        /* if the port is closed (DTR goes low...) */
-        if ((cdc_line_state & 0x01) && !(pkt->wValue & 0x01)) {
-            /* and the baud rate is 1200 bps... */
-            if (cdc_line_info.dwDTERate == 1200)
+    if (0x21 == req_direction) { /* host to device class interface */
+        if (CDC_SET_CONTROL_LINE_STATE == req) {
+            /* if the port is closed (DTR goes low...) */
+            if ((cdc_line_state & 0x01) && !(pkt->wValue & 0x01)) {
+                /* and the baud rate is 1200 bps... */
+                if (cdc_line_info.dwDTERate == 1200)
                 /* reset into bootloader */
-                rom_reset_usb_boot_extra(-1, 0, false);
+                    rom_reset_usb_boot_extra(-1, 0, false);
 
-            hack_has_elapsed = 0;
-            dtr_has_gone_low = 1;
+                hack_has_elapsed = 0;
+                dtr_has_gone_low = 1;
+            }
+
+            else if (!(cdc_line_state & 0x01) && (pkt->wValue & 0x01)) {
+                /* hack: we need to wait some time between seeing dtr go high and letting
+                 calling code know about it */
+                sofnum_at_dtr_high = usb_hw->sof_rd;
+
+                usb_hw_set->inte = USB_INTE_DEV_SOF_BITS;
+            }
+
+            cdc_line_state = pkt->wValue & 0xFF;
+            usb_acknowledge_out_request();
         }
-
-        else if (!(cdc_line_state & 0x01) && (pkt->wValue & 0x01)) {
-            /* hack: we need to wait some time between seeing dtr go high and letting
-             calling code know about it */
-            sofnum_at_dtr_high = usb_hw->sof_rd;
-
-            usb_hw_set->inte = USB_INTE_DEV_SOF_BITS;
+        else if (CDC_SET_LINE_CODING == req) {
+            should_set_cdc_line_state = 1;
+            usb_start_out_transfer(ep0_out, MIN(pkt->wLength, sizeof(cdc_line_info)));
         }
-
-        cdc_line_state = pkt->wValue & 0xFF;
-        usb_acknowledge_out_request();
+        else
+        /* TODO: */
+            usb_acknowledge_out_request();
     }
-    else if (CDC_SET_LINE_CODING == req) {
-        should_set_cdc_line_state = 1;
-        usb_start_out_transfer(ep0_out, MIN(pkt->wLength, sizeof(cdc_line_info)));
-    }
-    else if (CDC_SEND_BREAK == req)
-    /* TODO: */
-        usb_acknowledge_out_request();
     else if (req_direction == USB_DIR_OUT) {
         if (req == USB_REQUEST_SET_ADDRESS) {
             /* send a zlp as address 0 first, then, when that is acknowledged, set the actual addr */
