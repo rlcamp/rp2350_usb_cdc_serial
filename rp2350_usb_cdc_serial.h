@@ -19,4 +19,7 @@ void * usb_cdc_serial_tx_acquire(const size_t size_wanted);
 void usb_cdc_serial_tx_start(const void * pointer, const size_t size);
 int usb_cdc_serial_tx_still_sending(void);
 
+/* do not mix calls to this with regular acquire function */
+void * usb_cdc_serial_tx_acquire_half(const size_t size_wanted);
+
 void unaligned_memcpy(void *, const void * restrict, size_t count);

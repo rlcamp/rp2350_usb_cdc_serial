@@ -679,6 +679,13 @@ void * usb_cdc_serial_tx_acquire(const size_t size_wanted) {
     return ep2_in->dpram_start;
 }
 
+void * usb_cdc_serial_tx_acquire_half(const size_t size_wanted) {
+    if (size_wanted > 1920) panic("overflow");
+    static unsigned char half = 0;
+    half = !half;
+    return ep2_in->dpram_start + (half ? 1920 : 0);
+}
+
 const void * usb_cdc_serial_rx_staging_area(void) {
     return ep2_out->dpram_start;
 }
