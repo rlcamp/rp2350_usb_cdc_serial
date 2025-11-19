@@ -35,7 +35,7 @@ int main(void) {
         unaligned_memcpy(staging_area, wherry, sizeof(wherry) - 1);
 
         for (size_t ipass = 0; ipass < 2 && !usb_cdc_serial_dtr_has_gone_low(); ipass++) {
-            usb_cdc_serial_tx_start(sizeof(wherry) - 1);
+            usb_cdc_serial_tx_start(staging_area, sizeof(wherry) - 1);
 
             while (!usb_cdc_serial_dtr_has_gone_low() && usb_cdc_serial_tx_still_sending())
                 yield();
@@ -47,7 +47,7 @@ int main(void) {
             if (bytes_to_echo && !usb_cdc_serial_tx_still_sending()) {
                 unaligned_memcpy(staging_area, out_buf, bytes_to_echo);
 
-                usb_cdc_serial_tx_start(bytes_to_echo);
+                usb_cdc_serial_tx_start(staging_area, bytes_to_echo);
                 while (__dsb(), !usb_cdc_serial_dtr_has_gone_low() && usb_cdc_serial_tx_still_sending())
                     yield();
                 usb_cdc_serial_rx_rearm();
