@@ -673,8 +673,9 @@ int usb_cdc_serial_tx_still_sending(void) {
     return !!(*(void * volatile *)&ep2_in->in_stop);
 }
 
-void * usb_cdc_serial_tx_staging_area(const size_t size_wanted) {
+void * usb_cdc_serial_tx_acquire(const size_t size_wanted) {
     if (ep2_in->dpram_start + size_wanted > usb_dpram->epx_data + 4096) panic("overflow");
+    if (usb_cdc_serial_tx_still_sending()) return NULL;
     return ep2_in->dpram_start;
 }
 

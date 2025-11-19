@@ -30,12 +30,12 @@ int main(void) {
         for (size_t ipass = 0; ipass < 2; ipass++) {
             static const char wherry[] = "In 1520 Sir Alexander Stewart of Invernahyle was fishing off the small island next to Castle Stalker when he was surprised and murdered by a party of Campbells. Tradition has it that the nurse of his baby son, Donald Stewart, hid the baby in the Castle and when the Campbells left the nurse returned, found the baby still alive and took refuge in Morven. In around 1620 the Castle passed into the hands of the Campbells of Airds as a result of a drunken wager by the 7th Stewart Chief, Duncan, in exchange for an eight-oared wherry.\r\n";
 
-            while (!usb_cdc_serial_dtr_has_gone_low() && usb_cdc_serial_tx_still_sending())
+            void * staging_area = NULL;
+            while (!usb_cdc_serial_dtr_has_gone_low() && !(staging_area = usb_cdc_serial_tx_acquire(sizeof(wherry) - 1)))
                 yield();
 
             if (usb_cdc_serial_dtr_has_gone_low()) break;
 
-            void * staging_area = usb_cdc_serial_tx_staging_area(sizeof(wherry) - 1);
             unaligned_memcpy(staging_area, wherry, sizeof(wherry) - 1);
 
             usb_cdc_serial_tx_start(staging_area, sizeof(wherry) - 1);
@@ -50,12 +50,11 @@ int main(void) {
                 continue;
             }
 
-            while (!usb_cdc_serial_dtr_has_gone_low() && usb_cdc_serial_tx_still_sending())
+            void * staging_area = NULL;
+            while (!usb_cdc_serial_dtr_has_gone_low() && !(staging_area = usb_cdc_serial_tx_acquire(bytes_to_echo)))
                 yield();
 
             if (usb_cdc_serial_dtr_has_gone_low()) break;
-
-            void * staging_area = usb_cdc_serial_tx_staging_area(bytes_to_echo);
 
             unaligned_memcpy(staging_area, out_buf, bytes_to_echo);
 
