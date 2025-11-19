@@ -227,6 +227,7 @@ static unsigned hack_has_elapsed = 0;
 static uint8_t cdc_line_state;
 static struct cdc_line_info __attribute((aligned(8))) cdc_line_info;
 _Static_assert(sizeof(cdc_line_info) == 7, "wtf");
+static unsigned char rts_has_gone_low = 0;
 
 void usb_cdc_serial_init(void) {
     /* temporarily disable this until below init is finished */
@@ -275,6 +276,7 @@ void usb_cdc_serial_init(void) {
     memset(&cdc_line_info, 0, sizeof(cdc_line_info));
     cdc_line_state = 0;
     hack_has_elapsed = 0;
+    rts_has_gone_low = 0;
 
     /* make sure all writes to sram have finished before isr fires */
     __dsb();
@@ -572,6 +574,10 @@ static uint8_t dev_addr = 0;
 
 static char dtr_has_gone_low = 0;
 
+int usb_cdc_serial_rts_has_gone_low(void) {
+    return *(volatile char *)&rts_has_gone_low;
+}
+
 int usb_cdc_serial_dtr_has_gone_low(void) {
     return *(volatile char *)&dtr_has_gone_low;
 }
@@ -594,6 +600,10 @@ static void usb_handle_setup_packet(void) {
 
     if (0x21 == req_direction) { /* host to device class interface */
         if (CDC_SET_CONTROL_LINE_STATE == req) {
+            /* if rts was high and is now low... */
+            if ((cdc_line_state & 0x02) && !(pkt->wValue & 0x02))
+                rts_has_gone_low = 1;
+
             /* if the port is closed (DTR goes low...) */
             if ((cdc_line_state & 0x01) && !(pkt->wValue & 0x01)) {
                 /* and the baud rate is 1200 bps... */
@@ -780,6 +790,7 @@ void isr_usbctrl(void) {
         memset(&cdc_line_info, 0, sizeof(cdc_line_info));
         cdc_line_state = 0;
         hack_has_elapsed = 0;
+        rts_has_gone_low = 0;
         dev_addr = 0;
         usb_hw->dev_addr_ctrl = 0;
     }
