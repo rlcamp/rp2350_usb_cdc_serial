@@ -350,15 +350,6 @@ static void usb_double_buffered_in_transfer_continue(struct usb_endpoint_configu
     }
 }
 
-static void usb_double_buffered_in_transfer_start(struct usb_endpoint_configuration * ep,
-                                                  const size_t len_total) {
-
-    ep->in_cursor = ep->dpram_start;
-    ep->in_stop = ep->in_cursor + len_total;
-
-    usb_double_buffered_in_transfer_continue(ep);
-}
-
 static void usb_single_buffered_in_transfer_continue(struct usb_endpoint_configuration * ep) {
     const size_t len_remaining = ep->in_stop - ep->in_cursor;
     const uint16_t len_now = len_remaining < 64 ? len_remaining : 64;
@@ -693,7 +684,11 @@ const void * usb_cdc_serial_rx_staging_area(void) {
 
 void usb_cdc_serial_tx_start(const size_t size) {
     if (usb_cdc_serial_dtr_has_gone_low()) return;
-    usb_double_buffered_in_transfer_start(ep2_in, size);
+
+    ep2_in->in_cursor = ep2_in->dpram_start;
+    ep2_in->in_stop = ep2_in->in_cursor + size;
+
+    usb_double_buffered_in_transfer_continue(ep2_in);
 }
 
 static unsigned usb_get_endpoint_buff_status_mask(uint8_t addr) {
