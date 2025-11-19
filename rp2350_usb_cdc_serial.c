@@ -208,7 +208,7 @@ static struct usb_endpoint_configuration {
     .dpram_start = usb_dpram->epx_data + 3 * 64,
 };
 
-static inline uint32_t usb_buffer_offset(volatile unsigned char * buf) {
+static inline uint32_t usb_buffer_offset(const volatile unsigned char * buf) {
     /* return offset within dpram of a given absolute pointer */
     return (uint32_t)buf ^ (uint32_t)usb_dpram;
 }
