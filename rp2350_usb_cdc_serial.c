@@ -231,6 +231,7 @@ static void reset_state(void) {
     cdc_line_state = 0;
     hack_has_elapsed = 0;
     rts_has_gone_low = 0;
+    ep2_in->in_stop = NULL;
 }
 
 void usb_cdc_serial_init(void) {
