@@ -226,6 +226,13 @@ static struct cdc_line_info __attribute((aligned(8))) cdc_line_info;
 _Static_assert(sizeof(cdc_line_info) == 7, "wtf");
 static unsigned char rts_has_gone_low = 0;
 
+static void reset_state(void) {
+    memset(&cdc_line_info, 0, sizeof(cdc_line_info));
+    cdc_line_state = 0;
+    hack_has_elapsed = 0;
+    rts_has_gone_low = 0;
+}
+
 void usb_cdc_serial_init(void) {
     /* temporarily disable this until below init is finished */
     irq_set_enabled(USBCTRL_IRQ, false);
@@ -270,10 +277,7 @@ void usb_cdc_serial_init(void) {
     /* pull up on dp to indicate full speed */
     usb_hw_set->sie_ctrl = USB_SIE_CTRL_PULLUP_EN_BITS;
 
-    memset(&cdc_line_info, 0, sizeof(cdc_line_info));
-    cdc_line_state = 0;
-    hack_has_elapsed = 0;
-    rts_has_gone_low = 0;
+    reset_state();
 
     /* make sure all writes to sram have finished before isr fires */
     __dsb();
@@ -787,10 +791,7 @@ void isr_usbctrl(void) {
         handled |= USB_INTS_BUS_RESET_BITS;
         usb_hw_clear->sie_status = USB_SIE_STATUS_BUS_RESET_BITS;
 
-        memset(&cdc_line_info, 0, sizeof(cdc_line_info));
-        cdc_line_state = 0;
-        hack_has_elapsed = 0;
-        rts_has_gone_low = 0;
+        reset_state();
         dev_addr = 0;
         usb_hw->dev_addr_ctrl = 0;
     }
