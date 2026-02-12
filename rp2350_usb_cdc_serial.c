@@ -526,7 +526,11 @@ static void usb_handle_string_descriptor(volatile struct usb_setup_packet *pkt) 
 
     static const char * strings[] = {
         "Raspberry Pi",
+#ifdef USB_PRODUCT_NAME
+        USB_PRODUCT_NAME
+#else
         "Pico Test Device"
+#endif
     };
 
     if (!istring) {
