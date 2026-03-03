@@ -794,6 +794,8 @@ static void usb_handle_buff_status(void) {
 
         rx_buf_filled = (*ep2_out->ep_buf_ctrl) & USB_BUF_CTRL_LEN_MASK;
         total_rx_buf_filled += rx_buf_filled;
+        if (!rx_buf_filled)
+            usb_cdc_serial_rx_rearm();
     }
 
     /* TODO: something to handle remaining buffers? */
