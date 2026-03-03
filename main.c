@@ -7,6 +7,7 @@
 #include "RP2350.h"
 
 #include <stdio.h>
+#include <string.h>
 
 static void yield(void) {
     /* this can be replaced with yield() from cortex_m_cooperative_multitasking */
@@ -39,25 +40,25 @@ int main(void) {
             usb_cdc_serial_tx_start(staging_area, sizeof(wherry) - 1);
         }
 
-        const void * out_buf = usb_cdc_serial_rx_staging_area();
-
         while (!usb_cdc_serial_dtr_has_gone_low()) {
-            const size_t bytes_to_echo = usb_cdc_serial_rx_filled();
-            if (!bytes_to_echo) {
+            const char * line = get_line_from_usb_cdc();
+            if (!line) {
                 yield();
                 continue;
             }
 
+            const size_t bytes_to_echo = strlen(line);
+
             void * staging_area = usb_cdc_serial_tx_acquire_half(bytes_to_echo);
-            unaligned_memcpy(staging_area, out_buf, bytes_to_echo);
-            usb_cdc_serial_rx_rearm();
+            unaligned_memcpy(staging_area, line, bytes_to_echo);
 
             while (!usb_cdc_serial_dtr_has_gone_low() && usb_cdc_serial_tx_still_sending()) yield();
             if (usb_cdc_serial_dtr_has_gone_low()) break;
 
             usb_cdc_serial_tx_start(staging_area, bytes_to_echo);
+            printf("forwarded \"%s\"\r\n", line);
 
-            printf("forwarded %zu bytes\r\n", bytes_to_echo);
+            yield();
         }
 
         printf("disconnected\r\n");

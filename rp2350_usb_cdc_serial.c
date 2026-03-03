@@ -838,3 +838,36 @@ void isr_usbctrl(void) {
     if (status ^ handled)
         panic("unhandled irq(s): 0x%x\n", (uint) (status ^ handled));
 }
+
+const char * get_line_from_usb_cdc(void) {
+    /* convenience function, always returns NULL or a complete line in a C string */
+    static char linebuf[128] = { 0 }; /* max line length, ought to be enough for anyone */
+    static size_t ilinebuf = 0;
+
+    __dsb();
+    /* if there any bytes still sitting in ep sram... */
+    for (size_t bytes = usb_cdc_serial_rx_bytes_available(); bytes; bytes--) {
+        /* consume one byte from ep sram */
+        const unsigned char byte = usb_cdc_serial_rx_next_byte();
+
+        /* only advance the cursor if not already full */
+        if (ilinebuf < sizeof(linebuf)) linebuf[ilinebuf++] = byte;
+
+        /* treat either line ending identically, and ignore duplicates/empty lines */
+        if ('\r' == byte || '\n' == byte) {
+            /* if overflow occurred, discard the partial line */
+            if (byte != linebuf[ilinebuf - 1]) ilinebuf = 1;
+
+            /* overwrite whichever line ending we got with a zero termination */
+            linebuf[ilinebuf - 1] = '\0';
+
+            /* reset cursor */
+            ilinebuf = 0;
+
+            /* if the line ending in this newline was nonempty, return it */
+            if (linebuf[0] != '\0') return linebuf;
+        }
+    }
+
+    return NULL;
+}

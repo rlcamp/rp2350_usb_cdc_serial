@@ -29,3 +29,6 @@ size_t usb_cdc_serial_rx_bytes_available(void);
 
 /* and then call this that many times */
 unsigned char usb_cdc_serial_rx_next_byte(void);
+
+/* high level convenience function */
+const char * get_line_from_usb_cdc(void);
