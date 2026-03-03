@@ -235,6 +235,9 @@ static void reset_state(void) {
     rts_has_gone_low = 0;
     rx_buf_filled = 0;
     ep2_in->in_stop = NULL;
+    ep1_in->next_pid = 0;
+    ep2_out->next_pid = 0;
+    ep2_in->next_pid = 0;
 }
 
 void usb_cdc_serial_init(void) {
