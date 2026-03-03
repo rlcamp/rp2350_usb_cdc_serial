@@ -226,11 +226,14 @@ static struct cdc_line_info __attribute((aligned(8))) cdc_line_info;
 _Static_assert(sizeof(cdc_line_info) == 7, "wtf");
 static unsigned char rts_has_gone_low = 0;
 
+static size_t rx_buf_filled = 0;
+
 static void reset_state(void) {
     memset(&cdc_line_info, 0, sizeof(cdc_line_info));
     cdc_line_state = 0;
     hack_has_elapsed = 0;
     rts_has_gone_low = 0;
+    rx_buf_filled = 0;
     ep2_in->in_stop = NULL;
 }
 
@@ -665,8 +668,6 @@ static void usb_handle_setup_packet(void) {
         }
     }
 }
-
-static size_t rx_buf_filled = 0;
 
 size_t usb_cdc_serial_rx_filled(void) {
     return *(volatile size_t *)&rx_buf_filled;
