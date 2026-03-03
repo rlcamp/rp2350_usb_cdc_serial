@@ -669,6 +669,8 @@ static void usb_handle_setup_packet(void) {
     }
 }
 
+static size_t total_rx_buf_filled = 0, total_rx_buf_drained = 0;
+
 size_t usb_cdc_serial_rx_filled(void) {
     return *(volatile size_t *)&rx_buf_filled;
 }
@@ -677,6 +679,21 @@ void usb_cdc_serial_rx_rearm(void) {
     *(volatile size_t *)&rx_buf_filled = 0;
     /* indicate to host that ep2 out can receive */
     usb_start_out_transfer(ep2_out, 64);
+}
+
+size_t usb_cdc_serial_rx_bytes_available(void) {
+    return *(volatile size_t *)&total_rx_buf_filled - total_rx_buf_drained;
+}
+
+unsigned char usb_cdc_serial_rx_next_byte(void) {
+    /* it is an error to call this without using the above to know when */
+    /* we need not make volatile accesses to the write cursor because we know it will not
+     change again until we rearm after reading all of the bytes */
+    const unsigned char ret = ep2_out->dpram_start[total_rx_buf_drained++ - (total_rx_buf_filled - usb_cdc_serial_rx_filled())];
+
+    if (total_rx_buf_drained == total_rx_buf_filled)
+        usb_cdc_serial_rx_rearm();
+    return ret;
 }
 
 int usb_cdc_serial_tx_still_sending(void) {
@@ -773,6 +790,7 @@ static void usb_handle_buff_status(void) {
         remaining_buffers &= ~ep2_out_mask;
 
         rx_buf_filled = (*ep2_out->ep_buf_ctrl) & USB_BUF_CTRL_LEN_MASK;
+        total_rx_buf_filled += rx_buf_filled;
     }
 
     /* TODO: something to handle remaining buffers? */

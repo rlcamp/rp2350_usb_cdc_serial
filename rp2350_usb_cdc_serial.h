@@ -23,3 +23,9 @@ int usb_cdc_serial_tx_still_sending(void);
 void * usb_cdc_serial_tx_acquire_half(const size_t size_wanted);
 
 void unaligned_memcpy(void *, const void * restrict, size_t count);
+
+/* low level convenience functions: call this first... */
+size_t usb_cdc_serial_rx_bytes_available(void);
+
+/* and then call this that many times */
+unsigned char usb_cdc_serial_rx_next_byte(void);
