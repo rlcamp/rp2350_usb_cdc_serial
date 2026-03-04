@@ -231,11 +231,13 @@ static struct {
 
 _Static_assert(sizeof(cdc_state[0].line_info) == 7, "wtf");
 
-static size_t rx_buf_filled = 0;
+static struct {
+    size_t filled_now, total_filled, total_drained;
+} cdc_rx[1];
 
 static void reset_state(void) {
     memset(&cdc_state, 0, sizeof(cdc_state));
-    rx_buf_filled = 0;
+    cdc_rx[0].filled_now = 0;
     ep2_in->in_stop = NULL;
     ep1_in->next_pid = 0;
     ep2_out->next_pid = 0;
@@ -669,29 +671,27 @@ static void usb_handle_setup_packet(void) {
     }
 }
 
-static size_t total_rx_buf_filled = 0, total_rx_buf_drained = 0;
-
 size_t usb_cdc_serial_rx_filled(void) {
-    return *(volatile size_t *)&rx_buf_filled;
+    return *(volatile size_t *)&cdc_rx[0].filled_now;
 }
 
 void usb_cdc_serial_rx_rearm(void) {
-    *(volatile size_t *)&rx_buf_filled = 0;
+    *(volatile size_t *)&cdc_rx[0].filled_now = 0;
     /* indicate to host that ep2 out can receive */
     usb_start_out_transfer(ep2_out, 64);
 }
 
 size_t usb_cdc_serial_rx_bytes_available(void) {
-    return *(volatile size_t *)&total_rx_buf_filled - total_rx_buf_drained;
+    return *(volatile size_t *)&cdc_rx[0].total_filled - cdc_rx[0].total_drained;
 }
 
 unsigned char usb_cdc_serial_rx_next_byte(void) {
     /* it is an error to call this without using the above to know when */
     /* we need not make volatile accesses to the write cursor because we know it will not
      change again until we rearm after reading all of the bytes */
-    const unsigned char ret = ep2_out->dpram_start[total_rx_buf_drained++ - (total_rx_buf_filled - usb_cdc_serial_rx_filled())];
+    const unsigned char ret = ep2_out->dpram_start[cdc_rx[0].total_drained++ - (cdc_rx[0].total_filled - usb_cdc_serial_rx_filled())];
 
-    if (total_rx_buf_drained == total_rx_buf_filled)
+    if (cdc_rx[0].total_drained == cdc_rx[0].total_filled)
         usb_cdc_serial_rx_rearm();
     return ret;
 }
@@ -789,9 +789,9 @@ static void usb_handle_buff_status(void) {
         usb_hw_clear->buf_status = ep2_out_mask;
         remaining_buffers &= ~ep2_out_mask;
 
-        rx_buf_filled = (*ep2_out->ep_buf_ctrl) & USB_BUF_CTRL_LEN_MASK;
-        total_rx_buf_filled += rx_buf_filled;
-        if (!rx_buf_filled)
+        cdc_rx[0].filled_now = (*ep2_out->ep_buf_ctrl) & USB_BUF_CTRL_LEN_MASK;
+        cdc_rx[0].total_filled += cdc_rx[0].filled_now;
+        if (!cdc_rx[0].filled_now)
             usb_cdc_serial_rx_rearm();
     }
 
