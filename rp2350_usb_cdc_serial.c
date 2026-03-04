@@ -220,19 +220,21 @@ void usb_cdc_serial_deinit(void) {
     hw_set_bits(&usb_hw->sie_ctrl, USB_SIE_CTRL_TRANSCEIVER_PD_BITS);
 }
 
-static unsigned dtr_lockout = 0;
+static struct {
+    struct cdc_line_info __attribute((aligned(8))) line_info;
+    uint8_t line_state;
+    unsigned dtr_lockout;
+    unsigned char rts_has_gone_low;
+    unsigned char should_set_cdc_line_info;
+    unsigned char dtr_has_gone_low;
+} cdc_state[1];
 
-static uint8_t cdc_line_state;
-static struct cdc_line_info __attribute((aligned(8))) cdc_line_info;
-_Static_assert(sizeof(cdc_line_info) == 7, "wtf");
-static unsigned char rts_has_gone_low = 0;
+_Static_assert(sizeof(cdc_state[0].line_info) == 7, "wtf");
 
 static size_t rx_buf_filled = 0;
 
 static void reset_state(void) {
-    memset(&cdc_line_info, 0, sizeof(cdc_line_info));
-    cdc_line_state = 0;
-    rts_has_gone_low = 0;
+    memset(&cdc_state, 0, sizeof(cdc_state));
     rx_buf_filled = 0;
     ep2_in->in_stop = NULL;
     ep1_in->next_pid = 0;
@@ -570,25 +572,22 @@ static void usb_acknowledge_out_request(void) {
     usb_start_in_transfer(ep0_in, NULL, 0);
 }
 
-static unsigned char should_set_cdc_line_info = 0;
 static unsigned char should_set_dev_addr = 0;
 static uint8_t dev_addr = 0;
 
-static char dtr_has_gone_low = 0;
-
 int usb_cdc_serial_rts_has_gone_low(void) {
-    return *(volatile char *)&rts_has_gone_low;
+    return *(volatile char *)&cdc_state[0].rts_has_gone_low;
 }
 
 int usb_cdc_serial_dtr_has_gone_low(void) {
-    return *(volatile char *)&dtr_has_gone_low;
+    return *(volatile char *)&cdc_state[0].dtr_has_gone_low;
 }
 
 int usb_cdc_serial_dtr_is_high(void) {
-    dtr_has_gone_low = 0;
+    cdc_state[0].dtr_has_gone_low = 0;
 
-    if (dtr_lockout) return 0;
-    return (*(volatile uint8_t *)&cdc_line_state) & 0x1;
+    if (cdc_state[0].dtr_lockout) return 0;
+    return (*(volatile uint8_t *)&cdc_state[0].line_state) & 0x1;
 }
 
 static void usb_handle_setup_packet(void) {
@@ -603,32 +602,32 @@ static void usb_handle_setup_packet(void) {
     if (0x21 == req_direction) { /* host to device class interface */
         if (CDC_SET_CONTROL_LINE_STATE == req) {
             /* if rts was high and is now low... */
-            if ((cdc_line_state & 0x02) && !(pkt->wValue & 0x02))
-                rts_has_gone_low = 1;
+            if ((cdc_state[0].line_state & 0x02) && !(pkt->wValue & 0x02))
+                cdc_state[0].rts_has_gone_low = 1;
 
             /* if the port is closed (DTR goes low...) */
-            if ((cdc_line_state & 0x01) && !(pkt->wValue & 0x01)) {
+            if ((cdc_state[0].line_state & 0x01) && !(pkt->wValue & 0x01)) {
                 /* and the baud rate is 1200 bps... */
-                if (cdc_line_info.dwDTERate == 1200)
+                if (cdc_state[0].line_info.dwDTERate == 1200)
                 /* reset into bootloader */
                     rom_reset_usb_boot_extra(-1, 0, false);
 
-                dtr_has_gone_low = 1;
+                cdc_state[0].dtr_has_gone_low = 1;
             }
 
-            else if (!(cdc_line_state & 0x01) && (pkt->wValue & 0x01)) {
+            else if (!(cdc_state[0].line_state & 0x01) && (pkt->wValue & 0x01)) {
                 /* hack: we need to wait some time between seeing dtr go high and letting
                  calling code know about it */
-                dtr_lockout = 200;
+                cdc_state[0].dtr_lockout = 200;
                 usb_hw_set->inte = USB_INTE_DEV_SOF_BITS;
             }
 
-            cdc_line_state = pkt->wValue & 0xFF;
+            cdc_state[0].line_state = pkt->wValue & 0xFF;
             usb_acknowledge_out_request();
         }
         else if (CDC_SET_LINE_CODING == req) {
-            should_set_cdc_line_info = 1;
-            usb_start_out_transfer(ep0_out, MIN(pkt->wLength, sizeof(cdc_line_info)));
+            cdc_state[0].should_set_cdc_line_info = 1;
+            usb_start_out_transfer(ep0_out, MIN(pkt->wLength, sizeof(cdc_state[0].line_info)));
         }
         else
         /* TODO: */
@@ -760,9 +759,9 @@ static void usb_handle_buff_status(void) {
         usb_hw_clear->buf_status = ep0_out_mask;
         remaining_buffers &= ~ep0_out_mask;
 
-        if (should_set_cdc_line_info) {
-            unaligned_memcpy(&cdc_line_info, usb_dpram->ep0_buf_a, sizeof(cdc_line_info));
-            should_set_cdc_line_info = 0;
+        if (cdc_state[0].should_set_cdc_line_info) {
+            unaligned_memcpy(&cdc_state[0].line_info, usb_dpram->ep0_buf_a, sizeof(cdc_state[0].line_info));
+            cdc_state[0].should_set_cdc_line_info = 0;
 
             /* force next pid because this is technically in response to a setup packet */
             ep0_out->next_pid = 1;
@@ -826,10 +825,10 @@ void isr_usbctrl(void) {
         handled |= USB_INTS_DEV_SOF_BITS;
         (void)usb_hw->sof_rd; /* reading this register seems to be required */
 
-        if (dtr_lockout)
-            dtr_lockout--;
+        if (cdc_state[0].dtr_lockout)
+            cdc_state[0].dtr_lockout--;
 
-        if (!dtr_lockout)
+        if (!cdc_state[0].dtr_lockout)
             usb_hw_clear->inte = USB_INTE_DEV_SOF_BITS;
     }
 
