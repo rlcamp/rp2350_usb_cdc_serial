@@ -220,7 +220,8 @@ void usb_cdc_serial_deinit(void) {
     hw_set_bits(&usb_hw->sie_ctrl, USB_SIE_CTRL_TRANSCEIVER_PD_BITS);
 }
 
-static unsigned hack_has_elapsed = 0;
+static unsigned dtr_lockout = 0;
+
 static uint8_t cdc_line_state;
 static struct cdc_line_info __attribute((aligned(8))) cdc_line_info;
 _Static_assert(sizeof(cdc_line_info) == 7, "wtf");
@@ -231,7 +232,6 @@ static size_t rx_buf_filled = 0;
 static void reset_state(void) {
     memset(&cdc_line_info, 0, sizeof(cdc_line_info));
     cdc_line_state = 0;
-    hack_has_elapsed = 0;
     rts_has_gone_low = 0;
     rx_buf_filled = 0;
     ep2_in->in_stop = NULL;
@@ -570,7 +570,6 @@ static void usb_acknowledge_out_request(void) {
     usb_start_in_transfer(ep0_in, NULL, 0);
 }
 
-static unsigned sofnum_at_dtr_high = 0;
 static unsigned char should_set_cdc_line_info = 0;
 static unsigned char should_set_dev_addr = 0;
 static uint8_t dev_addr = 0;
@@ -588,7 +587,7 @@ int usb_cdc_serial_dtr_has_gone_low(void) {
 int usb_cdc_serial_dtr_is_high(void) {
     dtr_has_gone_low = 0;
 
-    if (!hack_has_elapsed) return 0;
+    if (dtr_lockout) return 0;
     return (*(volatile uint8_t *)&cdc_line_state) & 0x1;
 }
 
@@ -614,15 +613,13 @@ static void usb_handle_setup_packet(void) {
                 /* reset into bootloader */
                     rom_reset_usb_boot_extra(-1, 0, false);
 
-                hack_has_elapsed = 0;
                 dtr_has_gone_low = 1;
             }
 
             else if (!(cdc_line_state & 0x01) && (pkt->wValue & 0x01)) {
                 /* hack: we need to wait some time between seeing dtr go high and letting
                  calling code know about it */
-                sofnum_at_dtr_high = usb_hw->sof_rd;
-
+                dtr_lockout = 200;
                 usb_hw_set->inte = USB_INTE_DEV_SOF_BITS;
             }
 
@@ -827,12 +824,13 @@ void isr_usbctrl(void) {
 
     if (status & USB_INTS_DEV_SOF_BITS) {
         handled |= USB_INTS_DEV_SOF_BITS;
-        const unsigned sofnum = usb_hw->sof_rd;
-        if (sofnum - sofnum_at_dtr_high >= 200) {
-            hack_has_elapsed = 1;
+        (void)usb_hw->sof_rd; /* reading this register seems to be required */
 
+        if (dtr_lockout)
+            dtr_lockout--;
+
+        if (!dtr_lockout)
             usb_hw_clear->inte = USB_INTE_DEV_SOF_BITS;
-        }
     }
 
     if (usb_hw->sie_status & USB_SIE_STATUS_DATA_SEQ_ERROR_BITS) {
