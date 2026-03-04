@@ -571,7 +571,7 @@ static void usb_acknowledge_out_request(void) {
 }
 
 static unsigned sofnum_at_dtr_high = 0;
-static unsigned char should_set_cdc_line_state = 0;
+static unsigned char should_set_cdc_line_info = 0;
 static unsigned char should_set_dev_addr = 0;
 static uint8_t dev_addr = 0;
 
@@ -630,7 +630,7 @@ static void usb_handle_setup_packet(void) {
             usb_acknowledge_out_request();
         }
         else if (CDC_SET_LINE_CODING == req) {
-            should_set_cdc_line_state = 1;
+            should_set_cdc_line_info = 1;
             usb_start_out_transfer(ep0_out, MIN(pkt->wLength, sizeof(cdc_line_info)));
         }
         else
@@ -763,9 +763,9 @@ static void usb_handle_buff_status(void) {
         usb_hw_clear->buf_status = ep0_out_mask;
         remaining_buffers &= ~ep0_out_mask;
 
-        if (should_set_cdc_line_state) {
+        if (should_set_cdc_line_info) {
             unaligned_memcpy(&cdc_line_info, usb_dpram->ep0_buf_a, sizeof(cdc_line_info));
-            should_set_cdc_line_state = 0;
+            should_set_cdc_line_info = 0;
 
             /* force next pid because this is technically in response to a setup packet */
             ep0_out->next_pid = 1;
