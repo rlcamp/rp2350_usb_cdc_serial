@@ -596,7 +596,7 @@ static void usb_handle_setup_packet(void) {
     volatile struct usb_setup_packet * pkt = (volatile struct usb_setup_packet *) &usb_dpram->setup_packet;
     const uint8_t req_direction = pkt->bmRequestType;
     const uint8_t req = pkt->bRequest;
-    const size_t iface = pkt->wIndex;
+    const size_t iface = pkt->wIndex ? 1 : 0;
 
     /* ep0 next pid should always be 1 in response to a setup packet */
     ep0_in->next_pid = 1;
