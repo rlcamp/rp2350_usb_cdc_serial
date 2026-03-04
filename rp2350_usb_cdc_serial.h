@@ -24,7 +24,7 @@ int usb_cdc_serial_tx_still_sending(void);
 /* do not mix calls to this with regular acquire function */
 void * usb_cdc_serial_tx_acquire_half(const size_t size_wanted);
 
-int usb_cdc1_serial_dtr_has_gone_low(void);
+int usb_cdc1_serial_dtr_is_high(void);
 int usb_cdc1_serial_tx_still_sending(void);
 /* unlike cdc0, this can take any pointer, but is not as optimized */
 void usb_cdc1_serial_tx_start(const void * pointer, const size_t size);

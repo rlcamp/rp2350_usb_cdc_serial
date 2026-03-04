@@ -715,6 +715,7 @@ int usb_cdc_serial_dtr_has_gone_low(void) {
 }
 
 int usb_cdc_serial_dtr_is_high(void) {
+    /* TODO: factor out clearing of this bit */
     cdc_state[0].dtr_has_gone_low = 0;
 
     if (cdc_state[0].dtr_lockout) return 0;
@@ -725,13 +726,7 @@ int usb_cdc1_serial_rts_has_gone_low(void) {
     return *(volatile char *)&cdc_state[1].rts_has_gone_low;
 }
 
-int usb_cdc1_serial_dtr_has_gone_low(void) {
-    return *(volatile char *)&cdc_state[1].dtr_has_gone_low;
-}
-
 int usb_cdc1_serial_dtr_is_high(void) {
-    cdc_state[1].dtr_has_gone_low = 0;
-
     if (cdc_state[1].dtr_lockout) return 0;
     return (*(volatile uint8_t *)&cdc_state[1].line_state) & 0x1;
 }
@@ -897,7 +892,7 @@ void usb_cdc_serial_tx_start(const void * pointer, const size_t size) {
 }
 
 void usb_cdc1_serial_tx_start(const void * pointer, const size_t size) {
-    if (usb_cdc1_serial_dtr_has_gone_low()) return;
+    if (!usb_cdc1_serial_dtr_is_high()) return;
     usb_start_in_transfer(ep4_in, pointer, size);
 }
 
@@ -977,7 +972,7 @@ static void usb_handle_buff_status(void) {
         usb_hw_clear->buf_status = ep4_in_mask;
         remaining_buffers &= ~ep4_in_mask;
 
-        if (ep4_in->in_started != ep4_in->in_stop && !usb_cdc1_serial_dtr_has_gone_low())
+        if (ep4_in->in_started != ep4_in->in_stop && usb_cdc1_serial_dtr_is_high())
             usb_single_buffered_in_transfer_continue(ep4_in);
         else {
             ep4_in->in_started = NULL;
