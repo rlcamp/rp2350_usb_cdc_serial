@@ -9,6 +9,14 @@
 
 #include "rp2350_usb_cdc_serial.h"
 
+#ifndef USB_MANUFACTURER_NAME
+#define USB_MANUFACTURER_NAME "Raspberry Pi"
+#endif
+
+#ifndef USB_PRODUCT_NAME
+#define USB_PRODUCT_NAME "Pico Test Device"
+#endif
+
 /* so that we can reset into bootloader when dtr lowers at 1200 baud */
 #include "pico/bootrom.h"
 
@@ -664,12 +672,8 @@ static void usb_handle_string_descriptor(volatile struct usb_setup_packet *pkt) 
     size_t len = 0;
 
     static const char * strings[] = {
-        "Raspberry Pi",
-#ifdef USB_PRODUCT_NAME
+        USB_MANUFACTURER_NAME,
         USB_PRODUCT_NAME
-#else
-        "Pico Test Device"
-#endif
     };
 
     if (!istring) {
