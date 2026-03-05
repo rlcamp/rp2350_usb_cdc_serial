@@ -17,6 +17,11 @@
 #define USB_PRODUCT_NAME "Pico Test Device"
 #endif
 
+/* keep this to 5 characters or less for macos compatibility */
+#ifndef USB_SERIAL_PREFIX
+#define USB_SERIAL_PREFIX "PICO2"
+#endif
+
 /* so that we can reset into bootloader when dtr lowers at 1200 baud */
 #include "pico/bootrom.h"
 
@@ -451,7 +456,7 @@ static void usb_handle_device_descriptor(volatile struct usb_setup_packet *pkt) 
         .bcdDevice = 0x100,
         .iManufacturer = 1,
         .iProduct = 2,
-        .iSerialNumber = 0,
+        .iSerialNumber = 3,
         .bNumConfigurations = 1
     };
 
@@ -666,15 +671,22 @@ static void usb_handle_config_descriptor(volatile struct usb_setup_packet *pkt) 
     usb_start_in_transfer(ep0_in, &config_descriptor_buffer, len);
 }
 
+static size_t populate_dt_string(size_t D, unsigned char dest[restrict static D], const char * string) {
+    size_t len = 2;
+    for (; *string && len < D; len += 2) {
+        dest[len + 0] = *string++;
+        dest[len + 1] = 0;
+    }
+
+    dest[0] = len;
+    dest[1] = USB_DT_STRING;
+    return len;
+}
+
 static void usb_handle_string_descriptor(volatile struct usb_setup_packet *pkt) {
     /* zero if language request, nonzero if string descriptor index */
     unsigned istring = pkt->wValue & 0xff;
     size_t len = 0;
-
-    static const char * strings[] = {
-        USB_MANUFACTURER_NAME,
-        USB_PRODUCT_NAME
-    };
 
     if (!istring) {
         static const unsigned char lang_descriptor[] = {
@@ -686,18 +698,24 @@ static void usb_handle_string_descriptor(volatile struct usb_setup_packet *pkt) 
         len = 4;
         unaligned_memcpy(ep0_buf, lang_descriptor, len);
     }
-    else if (istring - 1 < sizeof(strings) / sizeof(strings[0])) {
-        /* handle expansion of C string to utf-16 string descriptor thing */
-        const char * string = strings[istring - 1];
-        unsigned char * dest = ep0_buf;
-        len = 2;
-        for (; *string && len < sizeof(ep0_buf); len += 2) {
-            dest[len + 0] = *string++;
-            dest[len + 1] = 0;
-        }
+    else if (1 == istring)
+        len = populate_dt_string(sizeof(ep0_buf), ep0_buf, USB_MANUFACTURER_NAME);
+    else if (2 == istring)
+        len = populate_dt_string(sizeof(ep0_buf), ep0_buf, USB_PRODUCT_NAME);
+    else if (3 == istring) {
+        rom_get_sys_info_fn func = (rom_get_sys_info_fn)rom_func_lookup(ROM_FUNC_GET_SYS_INFO);
+        uint32_t words[9];
+        func(words, 9, SYS_INFO_CHIP_INFO);
 
-        dest[0] = len;
-        dest[1] = USB_DT_STRING;
+        char serial_number[sizeof(USB_SERIAL_PREFIX) - 1 + 8 + 1] = USB_SERIAL_PREFIX;
+        size_t idest = sizeof(USB_SERIAL_PREFIX) - 1;
+        for (size_t inibble = 8; inibble-- > 0; ) {
+            const unsigned char c = (words[2] >> (4 * inibble)) & 0xF;
+            serial_number[idest++] = (c >= 10) ? ('A' + (c - 10)) : ('0' + c);
+        }
+        serial_number[idest] = '\0';
+
+        len = populate_dt_string(sizeof(ep0_buf), ep0_buf, serial_number);
     }
 
     usb_start_in_transfer(ep0_in, ep0_buf, MIN(len, pkt->wLength));
