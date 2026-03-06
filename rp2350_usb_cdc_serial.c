@@ -255,7 +255,6 @@ static struct {
     struct cdc_line_info __attribute((aligned(8))) line_info;
     uint8_t line_state;
     unsigned dtr_lockout;
-    unsigned char rts_has_gone_low;
     unsigned char should_set_cdc_line_info;
 } cdc_state[2];
 
@@ -730,10 +729,6 @@ static void usb_acknowledge_out_request(void) {
 static unsigned char should_set_dev_addr = 0;
 static uint8_t dev_addr = 0;
 
-int usb_cdc_serial_rts_has_gone_low(void) {
-    return *(volatile char *)&cdc_state[0].rts_has_gone_low;
-}
-
 static int cdc0_dtr_is_high(void) {
     return (*(volatile uint8_t *)&cdc_state[0].line_state) & 0x1;
 }
@@ -749,10 +744,6 @@ int usb_cdc_serial_dtr_is_high(unsigned * rising_edge_count_p) {
         return 1;
     }
     else return 0;
-}
-
-int usb_cdc1_serial_rts_has_gone_low(void) {
-    return *(volatile char *)&cdc_state[1].rts_has_gone_low;
 }
 
 int usb_cdc1_serial_dtr_is_high(void) {
@@ -772,10 +763,6 @@ static void usb_handle_setup_packet(void) {
 
     if (0x21 == req_direction) { /* host to device class interface */
         if (CDC_SET_CONTROL_LINE_STATE == req) {
-            /* if rts was high and is now low... */
-            if ((cdc_state[iface].line_state & 0x02) && !(pkt->wValue & 0x02))
-                cdc_state[iface].rts_has_gone_low = 1;
-
             /* if the port is closed (DTR goes low...) */
             if ((cdc_state[iface].line_state & 0x01) && !(pkt->wValue & 0x01)) {
                 /* and the baud rate is 1200 bps... */
