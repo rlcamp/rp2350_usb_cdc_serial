@@ -23,7 +23,8 @@ int main(void) {
     usb_cdc_serial_init();
 
     while (1) {
-        while (!usb_cdc_serial_dtr_is_high())
+        unsigned session = 0;
+        while (!usb_cdc_serial_dtr_is_high(&session))
             yield();
 
         printf("connected\r\n");
@@ -34,13 +35,13 @@ int main(void) {
             void * staging_area = usb_cdc_serial_tx_acquire_half(sizeof(wherry) - 1);
             unaligned_memcpy(staging_area, wherry, sizeof(wherry) - 1);
 
-            while (!usb_cdc_serial_dtr_has_gone_low() && usb_cdc_serial_tx_still_sending()) yield();
-            if (usb_cdc_serial_dtr_has_gone_low()) break;
+            while (!usb_cdc_serial_dtr_has_gone_low(session) && usb_cdc_serial_tx_still_sending()) yield();
+            if (usb_cdc_serial_dtr_has_gone_low(session)) break;
 
             usb_cdc_serial_tx_start(staging_area, sizeof(wherry) - 1);
         }
 
-        while (!usb_cdc_serial_dtr_has_gone_low()) {
+        while (!usb_cdc_serial_dtr_has_gone_low(session)) {
             const char * line = get_line_from_usb_cdc();
             if (!line) {
                 yield();
@@ -52,8 +53,8 @@ int main(void) {
             void * staging_area = usb_cdc_serial_tx_acquire_half(bytes_to_echo);
             unaligned_memcpy(staging_area, line, bytes_to_echo);
 
-            while (!usb_cdc_serial_dtr_has_gone_low() && usb_cdc_serial_tx_still_sending()) yield();
-            if (usb_cdc_serial_dtr_has_gone_low()) break;
+            while (!usb_cdc_serial_dtr_has_gone_low(session) && usb_cdc_serial_tx_still_sending()) yield();
+            if (usb_cdc_serial_dtr_has_gone_low(session)) break;
 
             usb_cdc_serial_tx_start(staging_area, bytes_to_echo);
             printf("forwarded \"%s\"\r\n", line);

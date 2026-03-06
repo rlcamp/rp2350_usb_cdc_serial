@@ -3,11 +3,12 @@
 void usb_cdc_serial_init(void);
 void usb_cdc_serial_deinit(void);
 
-/* loop on this until it returns nonzero */
-int usb_cdc_serial_dtr_is_high(void);
+/* loop on this until it returns nonzero, and use the rising edge count it reports, as a
+ session id for knowing when this session has ended, even if another has already started */
+int usb_cdc_serial_dtr_is_high(unsigned * rising_edge_count_p);
 
 /* connection lasts until this returns nonzero */
-int usb_cdc_serial_dtr_has_gone_low(void);
+int usb_cdc_serial_dtr_has_gone_low(unsigned rising_edge_count);
 
 int usb_cdc_serial_rts_has_gone_low(void);
 

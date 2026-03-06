@@ -257,10 +257,12 @@ static struct {
     unsigned dtr_lockout;
     unsigned char rts_has_gone_low;
     unsigned char should_set_cdc_line_info;
-    unsigned char dtr_has_gone_low;
 } cdc_state[2];
 
 _Static_assert(sizeof(cdc_state[0].line_info) == 7, "wtf");
+
+/* does not get reset */
+static unsigned dtr_rising_edge_count[2];
 
 static struct {
     size_t filled_now, total_filled, total_drained;
@@ -732,16 +734,21 @@ int usb_cdc_serial_rts_has_gone_low(void) {
     return *(volatile char *)&cdc_state[0].rts_has_gone_low;
 }
 
-int usb_cdc_serial_dtr_has_gone_low(void) {
-    return *(volatile char *)&cdc_state[0].dtr_has_gone_low;
+static int cdc0_dtr_is_high(void) {
+    return (*(volatile uint8_t *)&cdc_state[0].line_state) & 0x1;
 }
 
-int usb_cdc_serial_dtr_is_high(void) {
-    /* TODO: factor out clearing of this bit */
-    cdc_state[0].dtr_has_gone_low = 0;
+int usb_cdc_serial_dtr_has_gone_low(unsigned rising_edge_count) {
+    return !cdc0_dtr_is_high() || *(volatile unsigned *)&dtr_rising_edge_count[0] != rising_edge_count;
+}
 
+int usb_cdc_serial_dtr_is_high(unsigned * rising_edge_count_p) {
     if (cdc_state[0].dtr_lockout) return 0;
-    return (*(volatile uint8_t *)&cdc_state[0].line_state) & 0x1;
+    if (cdc0_dtr_is_high()) {
+        *rising_edge_count_p = *(volatile unsigned *)&dtr_rising_edge_count[0];
+        return 1;
+    }
+    else return 0;
 }
 
 int usb_cdc1_serial_rts_has_gone_low(void) {
@@ -775,11 +782,11 @@ static void usb_handle_setup_packet(void) {
                 if (cdc_state[iface].line_info.dwDTERate == 1200)
                 /* reset into bootloader */
                     rom_reset_usb_boot_extra(-1, 0, false);
-
-                cdc_state[iface].dtr_has_gone_low = 1;
             }
 
             else if (!(cdc_state[iface].line_state & 0x01) && (pkt->wValue & 0x01)) {
+                dtr_rising_edge_count[iface]++;
+
                 /* hack: we need to wait some time between seeing dtr go high and letting
                  calling code know about it */
                 cdc_state[iface].dtr_lockout = 200;
@@ -905,7 +912,7 @@ const void * usb_cdc_serial_rx_staging_area(void) {
 }
 
 void usb_cdc_serial_tx_start(const void * pointer, const size_t size) {
-    if (usb_cdc_serial_dtr_has_gone_low()) return;
+    if (!cdc0_dtr_is_high()) return;
 
     ep2_in->in_started = pointer;
     ep2_in->in_stop = ep2_in->in_started + size;
@@ -969,7 +976,7 @@ static void usb_handle_buff_status(void) {
         usb_hw_clear->buf_status = ep2_in_mask;
         remaining_buffers &= ~ep2_in_mask;
 
-        if (ep2_in->in_started != ep2_in->in_stop && !usb_cdc_serial_dtr_has_gone_low())
+        if (ep2_in->in_started != ep2_in->in_stop && cdc0_dtr_is_high())
             usb_double_buffered_in_transfer_continue(ep2_in);
         else {
             ep2_in->in_started = NULL;
