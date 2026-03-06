@@ -1,6 +1,7 @@
 #include "rp2350_usb_cdc_serial.h"
 
 #include "pico/stdio_uart.h"
+#include "pico/bootrom.h"
 #include "hardware/sync.h"
 #include "hardware/clocks.h"
 
@@ -47,6 +48,9 @@ int main(void) {
                 yield();
                 continue;
             }
+
+            if (!strcmp(line, "flash"))
+                rom_reset_usb_boot_extra(-1, 0, false);
 
             const size_t bytes_to_echo = strlen(line);
 
