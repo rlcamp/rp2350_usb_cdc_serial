@@ -241,6 +241,16 @@ static inline uint32_t usb_buffer_offset(const volatile unsigned char * buf) {
     return (uint32_t)buf ^ (uint32_t)usb_dpram;
 }
 
+void usb_cdc_serial_deinit(void) {
+    irq_set_enabled(USBCTRL_IRQ, false);
+    irq_clear(USBCTRL_IRQ);
+
+    /* reset peripheral */
+    reset_unreset_block_num_wait_blocking(RESET_USBCTRL);
+
+    hw_set_bits(&usb_hw->sie_ctrl, USB_SIE_CTRL_TRANSCEIVER_PD_BITS);
+}
+
 static struct {
     struct cdc_line_info __attribute((aligned(8))) line_info;
     uint8_t line_state;
@@ -270,20 +280,6 @@ static void reset_state(void) {
     ep3_in->next_pid = 0;
     ep4_out->next_pid = 0;
     ep4_in->next_pid = 0;
-}
-
-void usb_cdc_serial_deinit(void) {
-    irq_set_enabled(USBCTRL_IRQ, false);
-    irq_clear(USBCTRL_IRQ);
-
-    /* reset peripheral */
-    reset_unreset_block_num_wait_blocking(RESET_USBCTRL);
-
-    hw_set_bits(&usb_hw->sie_ctrl, USB_SIE_CTRL_TRANSCEIVER_PD_BITS);
-
-    /* make sure anything waiting for usb gets notified that it is gone */
-    reset_state();
-    __sev();
 }
 
 void usb_cdc_serial_init(void) {
