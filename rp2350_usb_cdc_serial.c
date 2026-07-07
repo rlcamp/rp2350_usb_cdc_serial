@@ -1052,7 +1052,7 @@ void isr_usbctrl(void) {
     }
 
     if (status ^ handled)
-        panic("unhandled irq(s): 0x%x\n", (uint) (status ^ handled));
+        panic("unhandled irq(s): 0x%x\r\n", (uint) (status ^ handled));
 }
 
 const char * get_line_from_usb_cdc(void) {
