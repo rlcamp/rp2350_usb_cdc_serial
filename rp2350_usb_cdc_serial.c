@@ -373,7 +373,7 @@ void unaligned_memcpy(void * dstv, const void * restrict srcv, size_t count) {
 
 static void usb_double_buffered_in_transfer_continue(struct usb_endpoint_configuration * ep) {
     const size_t len_remaining = ep->in_stop - ep->in_started;
-    if (len_remaining > 64) {
+    if (len_remaining >= 64) {
         const size_t len_now = len_remaining < 128 ? len_remaining : 128;
 
         const uint32_t val_lo = (64 | USB_BUF_CTRL_FULL |
@@ -422,7 +422,7 @@ static void usb_double_buffered_in_transfer_continue(struct usb_endpoint_configu
 static void usb_single_buffered_in_transfer_continue(struct usb_endpoint_configuration * ep) {
     const size_t len_remaining = ep->in_stop - ep->in_started;
     const uint16_t len_now = len_remaining < 64 ? len_remaining : 64;
-
+    /* TODO: decide when we need to send a zlp and/or set _LAST */
     const uint32_t val = (len_now | USB_BUF_CTRL_FULL |
                           (ep->next_pid ? USB_BUF_CTRL_DATA1_PID : USB_BUF_CTRL_DATA0_PID));
 
@@ -963,7 +963,9 @@ static void usb_handle_buff_status(void) {
         usb_hw_clear->buf_status = ep2_in_mask;
         remaining_buffers &= ~ep2_in_mask;
 
-        if (ep2_in->in_started != ep2_in->in_stop && cdc0_dtr_is_high())
+        const unsigned len = (*ep2_in->ep_buf_ctrl) & USB_BUF_CTRL_LEN_MASK;
+
+        if ((ep2_in->in_started != ep2_in->in_stop || 64 == len) && cdc0_dtr_is_high())
             usb_double_buffered_in_transfer_continue(ep2_in);
         else {
             ep2_in->in_started = NULL;
