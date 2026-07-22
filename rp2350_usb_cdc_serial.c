@@ -364,7 +364,7 @@ static void usb_start_out_transfer(struct usb_endpoint_configuration * ep, const
 }
 
 void unaligned_memcpy(void * dstv, const void * restrict srcv, size_t count) {
-    unsigned char * restrict dst = dstv;
+    volatile unsigned char * restrict dst = dstv;
     const unsigned char * restrict src = srcv;
 
     while (count--)
